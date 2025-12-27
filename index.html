@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>荒島求生：數據紀錄挑戰 </title>
+    <style>
+        :root { --main-teal: #00796b; --bg-blue: #e0f2f1; --accent-orange: #f57c00; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: var(--bg-blue); display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; overflow-x: hidden; }
+        
+        /* 開場導覽頁面 */
+        #intro-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); display: flex; justify-content: center; align-items: center;
+            z-index: 999; color: white;
+        }
+        .intro-content {
+            background: white; color: #333; width: 90%; max-width: 600px; padding: 40px;
+            border-radius: 20px; text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            border: 8px solid var(--main-teal);
+        }
+        .intro-content h2 { color: var(--main-teal); margin-top: 0; }
+        .rule-box { text-align: left; background: #f9f9f9; padding: 20px; border-radius: 10px; margin: 20px 0; line-height: 1.6; }
+        .rule-box b { color: #d32f2f; }
+
+        /* 遊戲主要介面 */
+        .game-header { display: flex; justify-content: space-between; width: 95%; max-width: 1100px; align-items: center; }
+        .hp-bar { font-size: 22px; background: white; padding: 5px 20px; border-radius: 50px; border: 3px solid #ff5252; color: #ff5252; font-weight: bold; }
+
+        .main-game { display: flex; gap: 20px; width: 98%; max-width: 1100px; height: 82vh; margin-top: 10px; }
+        .sidebar { flex: 0 0 260px; background: white; padding: 15px; border-radius: 15px; border: 4px solid var(--main-teal); display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .info-card { background: #fff3e0; padding: 12px; border-radius: 10px; width: 90%; font-size: 15px; border-left: 5px solid var(--accent-orange); min-height: 100px; margin-bottom: 15px; }
+        
+        .btn { background: var(--main-teal); color: white; border: none; padding: 15px; font-size: 20px; border-radius: 10px; cursor: pointer; width: 100%; font-weight: bold; margin: 5px 0; transition: 0.2s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .btn:disabled { background: #ccc; transform: none; box-shadow: none; }
+        .error-hint { color: #d32f2f; font-weight: bold; font-size: 14px; margin-top: 5px; display: none; }
+
+        /* 圖表區 */
+        .workspace { flex: 1; display: flex; flex-direction: column; gap: 15px; }
+        .chart-wrapper { background: white; padding: 15px; border-radius: 15px; border: 2px solid #999; flex: 1; display: flex; flex-direction: column; position: relative; }
+        .full-chart-grid { display: grid; grid-template-columns: 40px 1fr; grid-template-rows: 1fr 30px; flex-grow: 1; }
+        .y-axis { display: flex; flex-direction: column; justify-content: space-around; align-items: flex-end; padding-right: 8px; font-weight: bold; color: #666; font-size: 14px; }
+        .grid-main { display: grid; border-left: 3px solid #333; border-bottom: 3px solid #333; background-image: linear-gradient(#f0f0f0 1px, transparent 1px); background-size: 100% 10.05%; }
+        .bar-grid { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(10, 1fr); }
+        .line-grid { grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr); position: relative; }
+        .x-axis { grid-column: 2; display: flex; justify-content: space-around; align-items: center; font-weight: bold; font-size: 14px; padding-top: 5px; }
+
+        .cell { border: 0.5px solid #ddd; cursor: pointer; }
+        .wood { background: #8d6e63 !important; } 
+        .food { background: #66bb6a !important; } 
+        .water { background: #42a5f5 !important; }
+        .temp-dot { background: #ff5252 !important; border-radius: 50%; transform: scale(0.6); z-index: 2; }
+        #line-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="intro-screen">
+        <div class="intro-content">
+            <h2>🏝️ 荒島求生計畫：極限啟航！</h2>
+            <p>村長，情況非常危急！你只有 <b>2 條生命</b>，只要遇到一次熱浪就會<b>損失一整條命</b>。</p>
+            <div class="rule-box">
+                <b>📜 遊戲規則：</b><br>
+                1. <b>每日任務</b>：點擊「擲骰子」獲取數據。<br>
+                2. <b>手動紀錄</b>：正確填寫長條圖與折線圖。<br>
+                3. <b>對錯檢查</b>：畫錯無法進入下一天。<br><br>
+                <b>🏆 逃生成功條件：</b><br>
+                1. 撐過 <b>10 天</b> 精確紀錄。<br>
+                2. 每種資源累積 <b>4 格以上</b>。<br>
+                3. <b>生命不能歸零</b> (氣溫 > 8 度時，直接扣除 <b>1 條命</b>)。
+            </div>
+            <button class="btn" style="background: var(--accent-orange);" onclick="startGame()">接受挑戰！</button>
+        </div>
+    </div>
+
+    <div class="game-header">
+        <h1>🏝️ 荒島求生 </h1>
+        <div class="hp-bar" id="hp-display">❤️ 生命值: 2 / 2</div>
+    </div>
+
+    <div class="main-game">
+        <div class="sidebar">
+            <div style="font-size: 20px; font-weight: bold; color: #e91e63;">第 <span id="day-num">1</span> / 10 天</div>
+            <div id="dice-view" style="font-size: 45px; margin: 15px;">🎲</div>
+            <div class="info-card" id="event-msg">點擊按鈕獲取今日生存數據！</div>
+            <div id="err-msg" class="error-hint">⚠️ 數據紀錄有誤，請再仔細檢查！</div>
+            <button class="btn" id="roll-btn" onclick="playTurn()">1. 擲骰子</button>
+            <button class="btn" style="background: var(--accent-orange);" id="next-btn" onclick="validateAndNext()" disabled>2. 核對並下一天</button>
+        </div>
+
+        <div class="workspace">
+            <div class="chart-wrapper">
+                <div style="font-weight:bold">📊 資源存量紀錄 (木/食/水)</div>
+                <div class="full-chart-grid">
+                    <div class="y-axis"><span>10</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+                    <div class="grid-main bar-grid" id="bar-grid"></div>
+                    <div class="x-axis"><span>木材 🪵</span><span>食物 🍎</span><span>水源 💧</span></div>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <div style="font-weight:bold">📈 氣溫趨勢圖 (度)</div>
+                <div class="full-chart-grid">
+                    <div class="y-axis"><span>10</span><span>9</span><span>8</span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span></div>
+                    <div class="grid-main line-grid" id="line-grid"><canvas id="line-canvas"></canvas></div>
+                    <div class="x-axis" id="x-days"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let day = 1; 
+        let hp = 2; // 初始生命為 2
+        let correctData = { wood: 0, food: 0, water: 0 };
+        let todayRes = -1; let todayTemp = -1;
+
+        function startGame() {
+            document.getElementById('intro-screen').style.display = 'none';
+        }
+
+        function init() {
+            const bg = document.getElementById('bar-grid');
+            for(let i=0; i<30; i++) {
+                let c = document.createElement('div'); c.className='cell';
+                let type = i % 3; 
+                c.onclick = () => c.classList.toggle(['wood','food','water'][type]);
+                bg.appendChild(c);
+            }
+            const lg = document.getElementById('line-grid');
+            for(let i=0; i<100; i++) {
+                let c = document.createElement('div'); c.className='cell';
+                let col = i % 10;
+                c.onclick = () => {
+                    if (col !== day - 1) { alert("請紀錄在第 " + day + " 天的格子中！"); return; }
+                    document.querySelectorAll('#line-grid .cell').forEach((el, idx) => {
+                        if(idx % 10 === col) el.classList.remove('temp-dot');
+                    });
+                    c.classList.add('temp-dot');
+                    drawTrend();
+                };
+                lg.appendChild(c);
+            }
+            const xDays = document.getElementById('x-days');
+            for(let i=1; i<=10; i++) { xDays.innerHTML += `<span>${i}天</span>`; }
+        }
+
+        function playTurn() {
+            todayRes = Math.floor(Math.random()*3);
+            todayTemp = Math.floor(Math.random()*10)+1;
+            if(todayRes === 0) correctData.wood++;
+            else if(todayRes === 1) correctData.food++;
+            else correctData.water++;
+
+            let resNames = ['木材 🪵', '食物 🍎', '水源 💧'];
+            let warning = "";
+            
+            // 判讀熱浪：氣溫 > 8 則扣除 1 點生命值（一條命）
+            if(todayTemp > 8) { 
+                hp--; 
+                warning = "<br><b style='color:red'>⚠️ 熱浪來襲！失去 1 條生命！</b>";
+                updateHP(); 
+            }
+
+            document.getElementById('event-msg').innerHTML = `今日任務：<br>1. 增加 <b>${resNames[todayRes]}</b><br>2. 紀錄氣溫 <b>${todayTemp} 度</b>${warning}`;
+            document.getElementById('dice-view').innerText = todayTemp + "°";
+            document.getElementById('roll-btn').disabled = true;
+            document.getElementById('next-btn').disabled = false;
+            document.getElementById('err-msg').style.display = 'none';
+        }
+
+        function updateHP() {
+            document.getElementById('hp-display').innerText = `❤️ 生命值: ${hp} / 2`;
+            if(hp <= 0) { 
+                // 延遲一下顯示，讓玩家看清楚訊息
+                setTimeout(() => {
+                    alert("💀 生命值歸零，你在荒島上倒下了..."); 
+                    location.reload(); 
+                }, 100);
+            }
+        }
+
+        function validateAndNext() {
+            const w = document.querySelectorAll('.wood').length;
+            const f = document.querySelectorAll('.food').length;
+            const wa = document.querySelectorAll('.water').length;
+            let lineOk = false;
+            document.querySelectorAll('.temp-dot').forEach(dot => {
+                const cells = Array.from(document.querySelectorAll('#line-grid .cell'));
+                const idx = cells.indexOf(dot);
+                if (idx % 10 === day - 1 && (10 - Math.floor(idx / 10)) === todayTemp) lineOk = true;
+            });
+
+            if (w === correctData.wood && f === correctData.food && wa === correctData.water && lineOk) {
+                if(day === 10) {
+                    if(w>=4 && f>=4 && wa>=4) alert("🎉 逃生成功！你在極限環境下生存了下來！");
+                    else alert(`😨 數據畫對了，但物資分配不均 (木:${w} 食:${f} 水:${wa})，無法逃生！`);
+                    location.reload();
+                } else {
+                    day++;
+                    document.getElementById('day-num').innerText = day;
+                    document.getElementById('roll-btn').disabled = false;
+                    document.getElementById('next-btn').disabled = true;
+                    document.getElementById('dice-view').innerText = "🎲";
+                    document.getElementById('event-msg').innerText = "點擊按鈕獲取新的一天數據！";
+                }
+            } else {
+                document.getElementById('err-msg').style.display = 'block';
+            }
+        }
+
+        function drawTrend() {
+            const canvas = document.getElementById('line-canvas');
+            const ctx = canvas.getContext('2d');
+            const container = document.getElementById('line-grid');
+            canvas.width = container.clientWidth; canvas.height = container.clientHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let dots = Array.from(document.querySelectorAll('.temp-dot')).sort((a,b) => a.offsetLeft - b.offsetLeft);
+            if(dots.length < 2) return;
+            ctx.beginPath(); ctx.strokeStyle = "#ff5252"; ctx.lineWidth = 3;
+            dots.forEach((dot, i) => {
+                let x = dot.offsetLeft + dot.offsetWidth/2;
+                let y = dot.offsetTop + dot.offsetHeight/2;
+                if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            });
+            ctx.stroke();
+        }
+
+        init();
+    </script>
+</body>
+</html>
